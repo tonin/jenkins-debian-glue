@@ -35,6 +35,11 @@ checks_and_defaults() {
     echo "*** Falling back to default, using host architecture ${architecture}. ***"
   fi
 
+  # Enables to use a different debootstrap method, i.e. qemu-debootstrap for cross builds
+  if [ -z "${DEBOOTSTRAP:-}" ] ; then
+    DEBOOTSTRAP='debootstrap'
+  fi
+
   if [ -z "${REPREPRO_OPTS:-}" ] ; then
     REPREPRO_OPTS='-v --waitforlock 1000'
     echo "*** REPREPRO_OPTS is unset, using default: $REPREPRO_OPTS ***"
@@ -249,7 +254,7 @@ cowbuilder_init() {
     echo "*** Creating cowbuilder base $COWBUILDER_BASE for arch $arch and distribution $COWBUILDER_DIST ***"
     sudo DIST="${distribution:-}" ARCH="${architecture:-}" ${ADT:+ADT=$ADT} \
       cowbuilder --create --basepath "${COWBUILDER_BASE}" --distribution "${COWBUILDER_DIST}" \
-         --debootstrapopts --arch --debootstrapopts "$arch" \
+         --debootstrap "${DEBOOTSTRAP}" --debootstrapopts --arch --debootstrapopts "$arch" \
          --debootstrapopts --variant=buildd --configfile="${pbuilderrc}" \
          --hookdir "${PBUILDER_HOOKDIR}"
     [ $? -eq 0 ] || bailout 1 "Error: Failed to create cowbuilder base ${COWBUILDER_BASE}."
