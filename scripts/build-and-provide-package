@@ -507,8 +507,8 @@ remove_packages() {
 }
 
 remove_missing_binary_packages() {
-  if [ -n "${SKIP_REMOVAL:-}" ] ; then
-    echo "*** Skipping removal of existing packages as requested via SKIP_REMOVAL ***"
+  if [ -n "${SKIP_REMOVAL:-}" ] || [ -n "${SKIP_MISSING_BINARY_REMOVAL:-}" ] ; then
+    echo "*** Skipping removal of existing packages as requested via SKIP_REMOVAL or SKIP_MISSING_BINARY_REMOVAL ***"
     return 0
   fi
 
