@@ -290,6 +290,7 @@ identify_build_type() {
       echo "*** Host architecture [$(dpkg-architecture -qDEB_HOST_ARCH)] does not match \$architecture [${architecture:-}] ... ***"
       echo "*** ... setting binary only build and continuing with identify_build_type ***"
       DEBBUILDOPTS="-B"
+      SKIP_SOURCE_REMOVAL=true
     fi
   else
     if [ "${MAIN_ARCHITECTURE:-}" = "${architecture:-}" ] ;then
@@ -471,8 +472,12 @@ remove_packages() {
     return 0
   fi
 
-  echo "*** Removing source package version from repository ***"
-  ${SUDO_CMD:-} reprepro -A source -b "${REPOSITORY}" ${REPREPRO_OPTS} remove "${REPOS}" "${SOURCE_PACKAGE}"
+  if [ -n "${SKIP_SOURCE_REMOVAL:-}" ] ; then
+    echo "*** Skipping removal of existing source package as we built a binary only package ***"
+  else
+    echo "*** Removing source package version from repository ***"
+    ${SUDO_CMD:-} reprepro -A source -b "${REPOSITORY}" ${REPREPRO_OPTS} remove "${REPOS}" "${SOURCE_PACKAGE}"
+  fi
 
   echo "*** Removing previous binary package versions from repository ***"
   for p in $(list_deb_files "${WORKSPACE}/binaries/"*"${newest_version}_${arch}.changes") ; do
