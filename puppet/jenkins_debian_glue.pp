@@ -189,11 +189,7 @@ class jenkins::software {
   }
 
   package { [ 'jenkins-debian-glue',
-            'jenkins-debian-glue-buildenv-git',
-            'jenkins-debian-glue-buildenv-lintian',
-            'jenkins-debian-glue-buildenv-svn',
-            'jenkins-debian-glue-buildenv-taptools',
-            'jenkins-debian-glue-buildenv-piuparts' ]:
+            'jenkins-debian-glue-buildenv' ]:
     ensure  => present,
     require => [
       File['/etc/apt/sources.list.d/jenkins-debian-glue.list'],
@@ -336,7 +332,7 @@ class jenkins::config {
   </builders>
   <publishers>
     <hudson.tasks.ArtifactArchiver>
-      <artifacts>*.gz,*.bz2,*.xz,*.deb,*.dsc,*.changes,lintian.txt</artifacts>
+      <artifacts>*.gz,*.bz2,*.xz,*.deb,*.dsc,*.git,*.changes,lintian.txt</artifacts>
       <latestOnly>false</latestOnly>
     </hudson.tasks.ArtifactArchiver>
     <hudson.tasks.Fingerprinter>
@@ -422,7 +418,8 @@ class jenkins::config {
       </selector>
     </hudson.plugins.copyartifact.CopyArtifact>
     <hudson.tasks.Shell>
-      <command>/usr/bin/build-and-provide-package</command>
+      <command>export POST_BUILD_HOOK=/usr/bin/jdg-debc
+/usr/bin/build-and-provide-package</command>
     </hudson.tasks.Shell>
     <hudson.tasks.Shell>
       <command>echo &quot;Listing packages inside the jenkins-debian-glue repository:&quot;
@@ -435,7 +432,7 @@ class jenkins::config {
   </builders>
   <publishers>
     <hudson.tasks.ArtifactArchiver>
-      <artifacts>*.gz,*.bz2,*.xz,*.deb,*.dsc,*.changes,lintian.txt</artifacts>
+      <artifacts>*.gz,*.bz2,*.xz,*.deb,*.dsc,*.git,*.changes,lintian.txt</artifacts>
       <latestOnly>false</latestOnly>
     </hudson.tasks.ArtifactArchiver>
     <hudson.tasks.Fingerprinter>
