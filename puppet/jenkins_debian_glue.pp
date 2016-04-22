@@ -86,7 +86,7 @@ class jenkins::repos {
   file { '/etc/apt/sources.list.d/jenkins.list':
     ensure  => present,
     notify  => Exec['refresh-apt-jenkins'],
-    content => 'deb http://pkg.jenkins-ci.org/debian-stable binary/',
+    content => "deb http://pkg.jenkins-ci.org/debian-stable binary/\n",
     require => Apt::Key['D50582E6'],
   }
 
@@ -108,7 +108,7 @@ class jenkins::repos {
   file { '/etc/apt/sources.list.d/jenkins-debian-glue.list':
     ensure  => present,
     notify  => Exec['refresh-apt-jenkins-debian-glue'],
-    content => 'deb http://jenkins.grml.org/debian jenkins-debian-glue main',
+    content => "deb http://jenkins.grml.org/debian jenkins-debian-glue main\n",
     require => Apt::Key['52D4A654'],
   }
 
@@ -136,6 +136,16 @@ class jenkins::software {
     require => Package['jenkins'],
   }
 
+  # required for recent versions of credentials
+  jenkins::plugin::install { 'icon-shim':
+    require => Package['jenkins'],
+  }
+
+  # required for recent versions of credentials
+  jenkins::plugin::install { 'ssh-credentials':
+    require => Package['jenkins'],
+  }
+
   jenkins::plugin::install { 'git-client':
     require => Package['jenkins'],
   }
@@ -151,6 +161,11 @@ class jenkins::software {
 
   # required for recent versions of git-client
   jenkins::plugin::install { 'ssh-agent':
+    require => Package['jenkins'],
+  }
+
+  # required for recent versions of ssh-agent
+  jenkins::plugin::install { 'workflow-step-api':
     require => Package['jenkins'],
   }
 

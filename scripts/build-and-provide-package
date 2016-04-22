@@ -101,6 +101,9 @@ checks_and_defaults() {
     echo "*** REPREPRO_OPTS is unset, using default: $REPREPRO_OPTS ***"
   fi
 
+  # support usage of a reprepro wrapper
+  REPREPRO_CMD="${REPREPRO_CMD:-reprepro}"
+
   if [ -z "${DEFAULT_REPOSITORY:-}" ] ; then
     DEFAULT_REPOSITORY='/srv/repository'
   fi
@@ -773,7 +776,7 @@ remove_packages() {
   fi
 
   echo "*** Removing source package version from repository ***"
-  ${SUDO_CMD:-} reprepro -A source -b "${REPOSITORY}" ${REPREPRO_OPTS} remove "${REPOS}" "${SOURCE_PACKAGE}"
+  ${SUDO_CMD:-} ${REPREPRO_CMD} -A source -b "${REPOSITORY}" ${REPREPRO_OPTS} remove "${REPOS}" "${SOURCE_PACKAGE}"
 
   echo "*** Removing previous binary package versions from repository ***"
   for p in $(list_deb_files "${WORKSPACE}/binaries/"*"_${newest_version}_${arch}.changes") ; do
@@ -797,10 +800,10 @@ remove_packages() {
     elif echo "$file" | egrep -q '_all.deb$'; then
       # note: "removesrc" would remove foreign arch files (of different builds)
       echo "*** Removing existing package ${binpackage} from repository ${REPOS} (arch all) ***"
-      ${SUDO_CMD:-} reprepro -b "${REPOSITORY}" ${REPREPRO_OPTS} remove "${REPOS}" "${binpackage}"
+      ${SUDO_CMD:-} ${REPREPRO_CMD} -b "${REPOSITORY}" ${REPREPRO_OPTS} remove "${REPOS}" "${binpackage}"
     else
       echo "*** Removing existing package ${binpackage} from repository ${REPOS} for arch ${arch} ***"
-      ${SUDO_CMD:-} reprepro -A "${arch}" -b "${REPOSITORY}" ${REPREPRO_OPTS} remove "${REPOS}" "${binpackage}"
+      ${SUDO_CMD:-} ${REPREPRO_CMD} -A "${arch}" -b "${REPOSITORY}" ${REPREPRO_OPTS} remove "${REPOS}" "${binpackage}"
     fi
 
   done
@@ -827,7 +830,7 @@ remove_missing_binary_packages() {
       ;;
   esac
 
-  for p in $(${SUDO_CMD:-} reprepro -b "${REPOSITORY}" ${REPREPRO_OPTS} --list-format '${package}\n' listmatched "${REPOS}" '*' | sort -u); do
+  for p in $(${SUDO_CMD:-} ${REPREPRO_CMD} -b "${REPOSITORY}" ${REPREPRO_OPTS} --list-format '${package}\n' listmatched "${REPOS}" '*' | sort -u); do
     echo " $binary_list " | grep -q " $p " || missing_packages="${missing_packages:-} $p"
   done
 
@@ -850,7 +853,7 @@ remove_missing_binary_packages() {
         echo "*** Package '$p' listed in SKIP_PACKAGE_FROM_REMOVAL - skipping removal therefore ***"
       else
         echo "*** Removing $p from $REPOS to avoid out-of-date data ***"
-        ${SUDO_CMD:-} reprepro -b "${REPOSITORY}" ${REPREPRO_OPTS} remove "${REPOS}" "${p}"
+        ${SUDO_CMD:-} ${REPREPRO_CMD} -b "${REPOSITORY}" ${REPREPRO_OPTS} remove "${REPOS}" "${p}"
       fi
    done
 
@@ -875,8 +878,8 @@ reprepro_wrapper() {
   esac
 
   echo "*** Including packages in repository $REPOS ***"
-  ${SUDO_CMD:-} reprepro -b "${REPOSITORY}" ${REPREPRO_OPTS} \
-    --ignore=wrongdistribution --ignore=uploaders \
+  ${SUDO_CMD:-} ${REPREPRO_CMD} -b "${REPOSITORY}" ${REPREPRO_OPTS} \
+    --ignore=wrongdistribution --ignore=uploaders --ignore=surprisingbinary \
     include "${REPOS}" "${WORKSPACE}/binaries/"*"_${newest_version}"_${architecture}.changes
   [ $? -eq 0 ] || bailout 1 "Error: Failed to include binary package in $REPOS repository."
 }
@@ -956,7 +959,7 @@ trunk_release() {
 
     ${SUDO_CMD:-} generate-reprepro-codename "$TRUNK_RELEASE"
 
-    ${SUDO_CMD:-} reprepro -b "${REPOSITORY}" ${REPREPRO_OPTS} --ignore=wrongdistribution copymatched "$TRUNK_RELEASE" "$REPOS" '*'
+    ${SUDO_CMD:-} ${REPREPRO_CMD} -b "${REPOSITORY}" ${REPREPRO_OPTS} --ignore=wrongdistribution copymatched "$TRUNK_RELEASE" "$REPOS" '*'
     [ $? -eq 0 ] || bailout 1 "Error: Failed to copy packages from ${REPOS} to ${TRUNK_RELEASE}."
   fi
 }
@@ -993,13 +996,19 @@ drop_unused_debfiles() {
 release_repos() {
   echo "*** Environment variable 'release' is set, running through release steps. ***"
 
+  # if codename should be different from release
+  if [ -z "${RELEASE_DISTRIBUTION:-}" ] ; then
+    RELEASE_DISTRIBUTION="$release"
+    echo "*** Environment variable 'RELEASE_DISTRIBUTION' is unset, defaulting to $RELEASE_DISTRIBUTION ***"
+  fi
+
   if [ -n "${RELEASE_REPOSITORY:-}" ]; then
     local REPOSITORY="${RELEASE_REPOSITORY}"
   else
     local REPOSITORY="${REPOSITORY}/release/${release}"
   fi;
 
-  mkdir -p "${REPOSITORY}/incoming/${release}"
+  mkdir -p "${REPOSITORY}/incoming/${RELEASE_DISTRIBUTION}"
   mkdir -p "${REPOSITORY}/conf"
 
   if [ "${REMOVE_FROM_RELEASE:-}" = 'true' ]; then
@@ -1010,25 +1019,25 @@ release_repos() {
   # get rid of files that aren't mentioned in the changes files before copying to incoming directory
   drop_unused_debfiles
 
-  cp "${WORKSPACE}/binaries/"* "${REPOSITORY}/incoming/${release}/"
+  cp "${WORKSPACE}/binaries/"* "${REPOSITORY}/incoming/${RELEASE_DISTRIBUTION}/"
   [ $? -eq 0 ] || bailout 1 "Error: Failed to copy binary packages to release directory."
 
-  REPOSITORY=$REPOSITORY generate-reprepro-codename "${release}"
+  REPOSITORY=$REPOSITORY generate-reprepro-codename "${RELEASE_DISTRIBUTION}"
 
   # lock access to file to avoid duplicate entries when two build-and-provide-package
   # runs happen at the very same time with regard to conf/incoming setup
   (
   flock --timeout 5 9 || bailout 1 "Error: could not lock file ${REPOSITORY}/conf/incoming, giving up."
 
-  if ! grep -q "^Name: $release$" "${REPOSITORY}/conf/incoming" 2>/dev/null ; then
+  if ! grep -q "^Name: $RELEASE_DISTRIBUTION$" "${REPOSITORY}/conf/incoming" 2>/dev/null ; then
     cat >> "${REPOSITORY}/conf/incoming" << EOF
 
-Name: $release
-IncomingDir: incoming/$release
+Name: ${RELEASE_DISTRIBUTION}
+IncomingDir: incoming/${RELEASE_DISTRIBUTION}
 TempDir: tmp
 LogDir: log
 MorgueDir: ${REPOSITORY}/morgue
-Default: $release
+Default: ${RELEASE_DISTRIBUTION}
 Cleanup: unused_files on_deny on_error
 
 EOF
@@ -1036,9 +1045,9 @@ EOF
   ) 9>/var/lock/jdg-build-and-provide-incoming."$(id -un)" || bailout 1 "Error while setting up incoming repository."
 
   local old_dir=$(pwd)
-  cd "${REPOSITORY}/incoming/${release}"
-  ${SUDO_CMD:-} reprepro -b "${REPOSITORY}" ${REPREPRO_OPTS} --ignore=wrongdistribution \
-                processincoming "${release}" "$(basename ${WORKSPACE}/binaries/*.changes)"
+  cd "${REPOSITORY}/incoming/${RELEASE_DISTRIBUTION}"
+  ${SUDO_CMD:-} ${REPREPRO_CMD} -b "${REPOSITORY}" ${REPREPRO_OPTS} --ignore=wrongdistribution \
+                processincoming "${RELEASE_DISTRIBUTION}" "$(basename ${WORKSPACE}/binaries/*.changes)"
   local RC=$?
   cd "$old_dir"
 
@@ -1073,7 +1082,16 @@ deploy_to_releases() {
     # setting the predefined parameters therefore) then ${release} is set to
     # '${release}' instead of being empty
     [ "${release}" != '${release}' ] ; then
-    release_repos
+
+    if [ -z "${RELEASE_REPOSITORIES:-}" ] ; then
+      release_repos
+    else
+      # allow pushing packages to multiple release repositories, like:
+      # RELEASE_REPOSITORIES="/srv/repository/release/ce/${release} /srv/repository/release/pro/${release}"
+      for release_repository in ${RELEASE_REPOSITORIES:-} ; do
+        RELEASE_REPOSITORY="$release_repository" release_repos
+      done
+    fi
   else
     reprepro_wrapper
     trunk_release
