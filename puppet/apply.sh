@@ -1,7 +1,7 @@
 #!/bin/bash
 
-start_seconds=$(cut -d . -f 1 /proc/uptime)
-[ -n "$start_seconds" ] && SECONDS="$[$(cut -d . -f 1 /proc/uptime)-$start_seconds]" || SECONDS="unknown"
+start_seconds=$(sed -e 's/^\([0-9]*\).*/\1/' < /proc/uptime)
+[ -n "$start_seconds" ] && SECONDS="$[$(sed -e 's/^\([0-9]*\).*/\1/' < /proc/uptime)-$start_seconds]" || SECONDS="unknown"
 
 if [ -r /var/lib/jenkins/config.xml ] ; then
   echo "Configuration file /var/lib/jenkins/config.xml exists already." >&2
@@ -88,7 +88,7 @@ if [ -z "$IP" ] ; then
   IP=$(ip addr show dev $(route -n | awk '/^0\.0\.0\.0/{print $NF}') | awk '/inet / {print $2}' | head -1 |sed "s;/.*;;")
 fi
 
-if [[ $(facter fqdn) == "" ]] ; then
+if [[ "$(hostname -f 2>/dev/null)" == "" ]] ; then
   echo "Error: please make sure you have a valid FQDN configured in /etc/hosts" >&2
   echo "NOTE:  Something like adding the following snippet to /etc/hosts might help:
 
@@ -98,12 +98,36 @@ $IP $(hostname).example.org $(hostname)
 fi
 
 if puppet apply jenkins_debian_glue.pp ; then
-  [ -n "$start_seconds" ] && SECONDS="$[$(cut -d . -f 1 /proc/uptime)-$start_seconds]" || SECONDS="unknown"
+  [ -n "$start_seconds" ] && SECONDS="$[$(sed -e 's/^\([0-9]*\).*/\1/' < /proc/uptime)-$start_seconds]" || SECONDS="unknown"
   echo "jenkins-debian-glue deployment finished after ${SECONDS} seconds."
 else
   echo "Fatal error during puppet run. :(" >&2
   exit 1
 fi
 
+echo "
+NOTE: if you should notice failing Jenkins jobs this might be related to
+incomplete Jenkins plugin dependencies (see
+https://github.com/jenkinsci/puppet-jenkins/issues/64 +
+https://github.com/jenkinsci/puppet-jenkins/issues/12 for details why we
+can't easily automate that yet).
 
-echo "Now point your browser to http://${IP}:8080"
+Usually this is related to the Git plugin. You can check whether the
+Git plugin for Jenkins is installed by checking if the following URL
+displays '<installed/>':
+
+  http://${IP}:8080/updateCenter/plugin/git/api/xml?xpath=plugin/installed
+
+If it returns something like 'XPath plugin/installed didn't match' then
+please install the plugin by visiting:
+
+  http://${IP}:8080/pluginManager/install?plugin.git.default
+
+and then click on the 'Restart Jenkins' option there.
+
+If the Git plugin is missing a dependency please report this at
+https://github.com/mika/jenkins-debian-glue/issues
+
+Enjoy your jenkins-debian-glue system!
+
+Now point your browser to http://${IP}:8080"

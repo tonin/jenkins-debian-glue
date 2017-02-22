@@ -462,7 +462,7 @@ quilt_cleanup
 
 # build source package, run before switching back to previous branch
 # to get the actual requested version
-dpkg-buildpackage -uc -us -nc -d -S -i -I ${DBP_EXTRA_OPTS:-}
+dpkg-buildpackage -uc -us -nc -d -S ${DBP_EXTRA_OPTS:-}
 
 if [ -n "${KEY_ID:-}" ] ; then
   echo "*** Found environment variable KEY_ID, set to ${KEY_ID:-}, signing source package ***"
@@ -487,7 +487,11 @@ fi
 # revert to original debian/changelog to avoid merge conflicts
 git checkout -- $(readlink -f debian/changelog)
 
-git checkout -f ${GIT_BRANCH} # switch back to previous "branch" before removing the tmp branch
+# switch back to previous "branch" before removing the tmp branch
+if ! git checkout -f "${GIT_BRANCH}"; then
+  # we were probably detached
+  git checkout -f "${GIT_COMMIT}"
+fi
 git branch -D "$random_branch"
 
 # vim:foldmethod=marker ts=2 ft=sh ai expandtab sw=2

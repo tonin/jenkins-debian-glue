@@ -159,6 +159,30 @@ class jenkins::software {
     require => Package['jenkins'],
   }
 
+  jenkins::plugin::install { 'matrix-project':
+    require => Package['jenkins'],
+  }
+
+  jenkins::plugin::install { 'junit':
+    require => Package['jenkins'],
+  }
+
+  jenkins::plugin::install { 'script-security':
+    require => Package['jenkins'],
+  }
+
+  jenkins::plugin::install { 'workflow-scm-step':
+    require => Package['jenkins'],
+  }
+
+  jenkins::plugin::install { 'mailer':
+    require => Package['jenkins'],
+  }
+
+  jenkins::plugin::install { 'display-url-api':
+    require => Package['jenkins'],
+  }
+
   # required for recent versions of git-client
   jenkins::plugin::install { 'ssh-agent':
     require => Package['jenkins'],
@@ -166,6 +190,14 @@ class jenkins::software {
 
   # required for recent versions of ssh-agent
   jenkins::plugin::install { 'workflow-step-api':
+    require => Package['jenkins'],
+  }
+
+  jenkins::plugin::install { 'bouncycastle-api':
+    require => Package['jenkins'],
+  }
+
+  jenkins::plugin::install { 'structs':
     require => Package['jenkins'],
   }
 
@@ -178,6 +210,11 @@ class jenkins::software {
   }
 
   jenkins::plugin::install { 'ws-cleanup':
+    require => Package['jenkins'],
+  }
+
+  # required for usage of HTML markup in user-submitted text
+  jenkins::plugin::install { 'antisamy-markup-formatter':
     require => Package['jenkins'],
   }
 
@@ -347,7 +384,7 @@ class jenkins::config {
   </builders>
   <publishers>
     <hudson.tasks.ArtifactArchiver>
-      <artifacts>*.gz,*.bz2,*.xz,*.deb,*.dsc,*.git,*.changes,lintian.txt</artifacts>
+      <artifacts>*.gz,*.bz2,*.xz,*.deb,*.dsc,*.git,*.changes,*.buildinfo,lintian.txt</artifacts>
       <latestOnly>false</latestOnly>
     </hudson.tasks.ArtifactArchiver>
     <hudson.tasks.Fingerprinter>
@@ -447,7 +484,7 @@ class jenkins::config {
   </builders>
   <publishers>
     <hudson.tasks.ArtifactArchiver>
-      <artifacts>*.gz,*.bz2,*.xz,*.deb,*.dsc,*.git,*.changes,lintian.txt</artifacts>
+      <artifacts>*.gz,*.bz2,*.xz,*.deb,*.dsc,*.git,*.changes,*.buildinfo,lintian.txt</artifacts>
       <latestOnly>false</latestOnly>
     </hudson.tasks.ArtifactArchiver>
     <hudson.tasks.Fingerprinter>
