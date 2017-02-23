@@ -441,10 +441,12 @@ identify_build_type() {
     case "${FORCE_BINARY_ONLY}" in
       all)
         DEBBUILDOPTS="-A"
+        SKIP_SOURCE_REMOVAL=true
         echo "*** FORCE_BINARY_ONLY set to 'all', building with DEBBUILDOPTS=${DEBBUILDOPTS} ***"
         ;;
       *)
         DEBBUILDOPTS="-B"
+        SKIP_SOURCE_REMOVAL=true
         echo "*** FORCE_BINARY_ONLY is NOT set to 'all', building with DEBBUILDOPTS=${DEBBUILDOPTS} ***"
         ;;
     esac
@@ -502,6 +504,7 @@ identify_build_type() {
           echo "*** Package provides arch 'all' + 'any', enabling -B buildoption for this architecture. ***"
           # -B -> binary-only build, limited to architecture dependent packages
           DEBBUILDOPTS="-B"
+          SKIP_SOURCE_REMOVAL=true
           break
         else
           # only "Architecture: all", so no arch specific packages since
