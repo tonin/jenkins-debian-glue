@@ -399,7 +399,7 @@ cowbuilder_init() {
     else
       echo "*** Updating cowbuilder cow base ***"
       sudo DIST="${distribution:-}" ARCH="${architecture:-}" ${ADT:+ADT=$ADT} \
-        cowbuilder --update --basepath "${COWBUILDER_BASE}" --configfile="${pbuilderrc}"
+        cowbuilder --update --override-config --basepath "${COWBUILDER_BASE}" --configfile="${pbuilderrc}"
       [ $? -eq 0 ] || exit 3
     fi
   fi
